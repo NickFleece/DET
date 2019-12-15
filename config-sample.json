@@ -10,10 +10,9 @@
             "port": 8080
         },
         "dns": {
-            "key": "google.com",
+            "key": "a123.com",
             "target": "192.168.0.12",
-            "port": 53,
-            "proxies": ["192.168.0.13", "192.168.0.14"]
+            "port": 53
         },
         "gmail": {
             "username": "dataexfil@gmail.com",
@@ -80,10 +79,10 @@
             "password": "XXXXXXXXXXXXXXXXXXXXXXXXX"
         }
     },
-    "AES_KEY": "THISISACRAZYKEY",
-    "max_time_sleep": 10,
-    "min_time_sleep": 1,
-    "max_bytes_read": 400,
-    "min_bytes_read": 300,
-    "compression": 1
+    "AES_KEY": "THISISACRAZYKEY1234",
+    "max_time_sleep": 1,
+    "min_time_sleep": 0,
+    "max_bytes_read": 50,
+    "min_bytes_read": 5,
+    "compression": 0
 }

