@@ -351,8 +351,8 @@ class ExfiltrateFile(threading.Thread):
                     print(e)
                     print("EXCEPTION! - skipping packet and not counting it...")
                 packet_index = packet_index + 1
-                if packet_index % 2 == 0:
-                    time.sleep(10)
+                if packet_index % 8600 == 0:
+                    #time.sleep(10)
                     print("\n\n")
                     break
 
